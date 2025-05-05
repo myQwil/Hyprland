@@ -33,13 +33,6 @@ CHyprlandCTMControlResource::CHyprlandCTMControlResource(SP<CHyprlandCtmControlM
         const std::array<float, 9> MAT = {wl_fixed_to_double(mat0), wl_fixed_to_double(mat1), wl_fixed_to_double(mat2), wl_fixed_to_double(mat3), wl_fixed_to_double(mat4),
                                           wl_fixed_to_double(mat5), wl_fixed_to_double(mat6), wl_fixed_to_double(mat7), wl_fixed_to_double(mat8)};
 
-        for (auto& el : MAT) {
-            if (el < 0.F) {
-                m_resource->error(HYPRLAND_CTM_CONTROL_MANAGER_V1_ERROR_INVALID_MATRIX, "a matrix component was < 0");
-                return;
-            }
-        }
-
         m_ctms[PMONITOR->m_name] = MAT;
 
         LOGM(LOG, "CTM set for output {}: {}", PMONITOR->m_name, m_ctms.at(PMONITOR->m_name).toString());
