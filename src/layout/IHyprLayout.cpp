@@ -410,17 +410,22 @@ static void snapResize(double& start, double& end, const double P) {
 using SnapFn = std::function<void(double&, double&, const double)>;
 
 void IHyprLayout::performSnap(Vector2D& sourcePos, Vector2D& sourceSize, PHLWINDOW DRAGGINGWINDOW, const eMouseBindMode MODE, const int CORNER, const Vector2D& BEGINSIZE) {
-    static auto  SNAPWINDOWGAP     = CConfigValue<Hyprlang::INT>("general:snap:window_gap");
-    static auto  SNAPMONITORGAP    = CConfigValue<Hyprlang::INT>("general:snap:monitor_gap");
-    static auto  SNAPBORDEROVERLAP = CConfigValue<Hyprlang::INT>("general:snap:border_overlap");
-    static auto  SNAPRESPECTGAPS   = CConfigValue<Hyprlang::INT>("general:snap:respect_gaps");
+    static auto   SNAPWINDOWGAP     = CConfigValue<Hyprlang::INT>("general:snap:window_gap");
+    static auto   SNAPMONITORGAP    = CConfigValue<Hyprlang::INT>("general:snap:monitor_gap");
+    static auto   SNAPBORDEROVERLAP = CConfigValue<Hyprlang::INT>("general:snap:border_overlap");
+    static auto   SNAPRESPECTGAPS   = CConfigValue<Hyprlang::INT>("general:snap:respect_gaps");
 
-    static auto  PGAPSIN  = CConfigValue<Hyprlang::CUSTOMTYPE>("general:gaps_in");
-    static auto  PGAPSOUT = CConfigValue<Hyprlang::CUSTOMTYPE>("general:gaps_out");
-    const auto   GAPSNONE = CCssGapData{0, 0, 0, 0};
+    static auto   PGAPSIN  = CConfigValue<Hyprlang::CUSTOMTYPE>("general:gaps_in");
+    static auto   PGAPSOUT = CConfigValue<Hyprlang::CUSTOMTYPE>("general:gaps_out");
+    const auto    GAPSNONE = CCssGapData{0, 0, 0, 0};
 
-    const SnapFn SNAP  = (MODE == MBIND_MOVE) ? snapMove : snapResize;
-    int          snaps = 0;
+    const uint8_t SIDE_TOP    = CORNER_TOPLEFT | CORNER_TOPRIGHT;
+    const uint8_t SIDE_RIGHT  = CORNER_TOPRIGHT | CORNER_BOTTOMRIGHT;
+    const uint8_t SIDE_BOTTOM = CORNER_BOTTOMRIGHT | CORNER_BOTTOMLEFT;
+    const uint8_t SIDE_LEFT   = CORNER_BOTTOMLEFT | CORNER_TOPLEFT;
+
+    const SnapFn  SNAP  = (MODE == MBIND_MOVE) ? snapMove : snapResize;
+    uint8_t       snaps = 0;
 
     struct SRange {
         double start = 0;
@@ -450,19 +455,19 @@ void IHyprLayout::performSnap(Vector2D& sourcePos, Vector2D& sourceSize, PHLWIND
 
             // only snap windows if their ranges overlap in the opposite axis
             if (sourceY.start <= SURFBY.end && SURFBY.start <= sourceY.end) {
-                if (CORNER & (CORNER_TOPLEFT | CORNER_BOTTOMLEFT) && canSnap(sourceX.start, SURFBX.end, GAPSIZE)) {
+                if (CORNER & SIDE_LEFT && canSnap(sourceX.start, SURFBX.end, GAPSIZE)) {
                     SNAP(sourceX.start, sourceX.end, SURFBX.end);
                     snaps |= SNAP_LEFT;
-                } else if (CORNER & (CORNER_TOPRIGHT | CORNER_BOTTOMRIGHT) && canSnap(sourceX.end, SURFBX.start, GAPSIZE)) {
+                } else if (CORNER & SIDE_RIGHT && canSnap(sourceX.end, SURFBX.start, GAPSIZE)) {
                     SNAP(sourceX.end, sourceX.start, SURFBX.start);
                     snaps |= SNAP_RIGHT;
                 }
             }
             if (sourceX.start <= SURFBX.end && SURFBX.start <= sourceX.end) {
-                if (CORNER & (CORNER_TOPLEFT | CORNER_TOPRIGHT) && canSnap(sourceY.start, SURFBY.end, GAPSIZE)) {
+                if (CORNER & SIDE_TOP && canSnap(sourceY.start, SURFBY.end, GAPSIZE)) {
                     SNAP(sourceY.start, sourceY.end, SURFBY.end);
                     snaps |= SNAP_UP;
-                } else if (CORNER & (CORNER_BOTTOMLEFT | CORNER_BOTTOMRIGHT) && canSnap(sourceY.end, SURFBY.start, GAPSIZE)) {
+                } else if (CORNER & SIDE_BOTTOM && canSnap(sourceY.end, SURFBY.start, GAPSIZE)) {
                     SNAP(sourceY.end, sourceY.start, SURFBY.start);
                     snaps |= SNAP_DOWN;
                 }
@@ -471,20 +476,20 @@ void IHyprLayout::performSnap(Vector2D& sourcePos, Vector2D& sourceSize, PHLWIND
             // corner snapping
             if (sourceX.start == SURFBX.end || SURFBX.start == sourceX.end) {
                 const SRange SURFY = {SURFBY.start + GAPSY, SURFBY.end - GAPSY};
-                if (CORNER & (CORNER_TOPLEFT | CORNER_TOPRIGHT) && !(snaps & SNAP_UP) && canSnap(sourceY.start, SURFY.start, GAPSIZE)) {
+                if (CORNER & SIDE_TOP && !(snaps & SNAP_UP) && canSnap(sourceY.start, SURFY.start, GAPSIZE)) {
                     SNAP(sourceY.start, sourceY.end, SURFY.start);
                     snaps |= SNAP_UP;
-                } else if (CORNER & (CORNER_BOTTOMLEFT | CORNER_BOTTOMRIGHT) && !(snaps & SNAP_DOWN) && canSnap(sourceY.end, SURFY.end, GAPSIZE)) {
+                } else if (CORNER & SIDE_BOTTOM && !(snaps & SNAP_DOWN) && canSnap(sourceY.end, SURFY.end, GAPSIZE)) {
                     SNAP(sourceY.end, sourceY.start, SURFY.end);
                     snaps |= SNAP_DOWN;
                 }
             }
             if (sourceY.start == SURFBY.end || SURFBY.start == sourceY.end) {
                 const SRange SURFX = {SURFBX.start + GAPSX, SURFBX.end - GAPSX};
-                if (CORNER & (CORNER_TOPLEFT | CORNER_BOTTOMLEFT) && !(snaps & SNAP_LEFT) && canSnap(sourceX.start, SURFX.start, GAPSIZE)) {
+                if (CORNER & SIDE_LEFT && !(snaps & SNAP_LEFT) && canSnap(sourceX.start, SURFX.start, GAPSIZE)) {
                     SNAP(sourceX.start, sourceX.end, SURFX.start);
                     snaps |= SNAP_LEFT;
-                } else if (CORNER & (CORNER_TOPRIGHT | CORNER_BOTTOMRIGHT) && !(snaps & SNAP_RIGHT) && canSnap(sourceX.end, SURFX.end, GAPSIZE)) {
+                } else if (CORNER & SIDE_RIGHT && !(snaps & SNAP_RIGHT) && canSnap(sourceX.end, SURFX.end, GAPSIZE)) {
                     SNAP(sourceX.end, sourceX.start, SURFX.end);
                     snaps |= SNAP_RIGHT;
                 }
@@ -502,25 +507,25 @@ void IHyprLayout::performSnap(Vector2D& sourcePos, Vector2D& sourceSize, PHLWIND
         SRange       monX = {MON->m_position.x + MON->m_reservedTopLeft.x + GAPSOUT->m_left, MON->m_position.x + MON->m_size.x - MON->m_reservedBottomRight.x - GAPSOUT->m_right};
         SRange       monY = {MON->m_position.y + MON->m_reservedTopLeft.y + GAPSOUT->m_top, MON->m_position.y + MON->m_size.y - MON->m_reservedBottomRight.y - GAPSOUT->m_bottom};
 
-        if (CORNER & (CORNER_TOPLEFT | CORNER_BOTTOMLEFT) &&
+        if (CORNER & SIDE_LEFT &&
             ((MON->m_reservedTopLeft.x > 0 && canSnap(sourceX.start, monX.start, GAPSIZE)) ||
              canSnap(sourceX.start, (monX.start -= MON->m_reservedTopLeft.x + EXTENTDIFF->topLeft.x), GAPSIZE))) {
             SNAP(sourceX.start, sourceX.end, monX.start);
             snaps |= SNAP_LEFT;
         }
-        if (CORNER & (CORNER_TOPRIGHT | CORNER_BOTTOMRIGHT) &&
+        if (CORNER & SIDE_RIGHT &&
             ((MON->m_reservedBottomRight.x > 0 && canSnap(sourceX.end, monX.end, GAPSIZE)) ||
              canSnap(sourceX.end, (monX.end += MON->m_reservedBottomRight.x + EXTENTDIFF->bottomRight.x), GAPSIZE))) {
             SNAP(sourceX.end, sourceX.start, monX.end);
             snaps |= SNAP_RIGHT;
         }
-        if (CORNER & (CORNER_TOPLEFT | CORNER_TOPRIGHT) &&
+        if (CORNER & SIDE_TOP &&
             ((MON->m_reservedTopLeft.y > 0 && canSnap(sourceY.start, monY.start, GAPSIZE)) ||
              canSnap(sourceY.start, (monY.start -= MON->m_reservedTopLeft.y + EXTENTDIFF->topLeft.y), GAPSIZE))) {
             SNAP(sourceY.start, sourceY.end, monY.start);
             snaps |= SNAP_UP;
         }
-        if (CORNER & (CORNER_BOTTOMLEFT | CORNER_BOTTOMRIGHT) &&
+        if (CORNER & SIDE_BOTTOM &&
             ((MON->m_reservedBottomRight.y > 0 && canSnap(sourceY.end, monY.end, GAPSIZE)) ||
              canSnap(sourceY.end, (monY.end += MON->m_reservedBottomRight.y + EXTENTDIFF->bottomRight.y), GAPSIZE))) {
             SNAP(sourceY.end, sourceY.start, monY.end);
@@ -533,15 +538,15 @@ void IHyprLayout::performSnap(Vector2D& sourcePos, Vector2D& sourceSize, PHLWIND
     sourceY = {sourceY.start + EXTENTS.topLeft.y, sourceY.end - EXTENTS.bottomRight.y};
 
     if (MODE == MBIND_RESIZE_FORCE_RATIO) {
-        if ((CORNER & (CORNER_TOPLEFT | CORNER_BOTTOMLEFT) && snaps & SNAP_LEFT) || (CORNER & (CORNER_TOPRIGHT | CORNER_BOTTOMRIGHT) && snaps & SNAP_RIGHT)) {
+        if ((CORNER & SIDE_LEFT && snaps & SNAP_LEFT) || (CORNER & SIDE_RIGHT && snaps & SNAP_RIGHT)) {
             const double SIZEY = (sourceX.end - sourceX.start) * (BEGINSIZE.y / BEGINSIZE.x);
-            if (CORNER & (CORNER_TOPLEFT | CORNER_TOPRIGHT))
+            if (CORNER & SIDE_TOP)
                 sourceY.start = sourceY.end - SIZEY;
             else
                 sourceY.end = sourceY.start + SIZEY;
-        } else if ((CORNER & (CORNER_TOPLEFT | CORNER_TOPRIGHT) && snaps & SNAP_UP) || (CORNER & (CORNER_BOTTOMLEFT | CORNER_BOTTOMRIGHT) && snaps & SNAP_DOWN)) {
+        } else if ((CORNER & SIDE_TOP && snaps & SNAP_UP) || (CORNER & SIDE_BOTTOM && snaps & SNAP_DOWN)) {
             const double SIZEX = (sourceY.end - sourceY.start) * (BEGINSIZE.x / BEGINSIZE.y);
-            if (CORNER & (CORNER_TOPLEFT | CORNER_BOTTOMLEFT))
+            if (CORNER & SIDE_LEFT)
                 sourceX.start = sourceX.end - SIZEX;
             else
                 sourceX.end = sourceX.start + SIZEX;
